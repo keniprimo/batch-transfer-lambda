@@ -1,0 +1,48 @@
+name: Build and Deploy Lambda
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -t package
+          cp batch_transfer_lambda.py solana_utils.py package
+
+      - name: Zip Lambda package
+        run: |
+          cd package
+          zip -r9 ../batch_transfer_lambda.zip .
+
+      - name: Upload to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: eu-north-1
+        run: |
+          aws s3 cp batch_transfer_lambda.zip s3://batch-transfer-lambda-deployment/batch_transfer_lambda.zip --region $AWS_REGION
+
+      - name: Update Lambda
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: eu-north-1
+        run: |
+          aws lambda update-function-code \
+            --function-name BatchTransferFunction \
+            --s3-bucket batch-transfer-lambda-deployment \
+            --s3-key batch_transfer_lambda.zip \
+            --region $AWS_REGION
