@@ -33,6 +33,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -t package
           cp batch_transfer_lambda.py solana_utils.py package/
+          cp -r package/* package/  # Ensures all binary/module subfolders are captured
 
       - name: Zip Lambda package
         run: |
